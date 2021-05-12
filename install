@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+[[ -n "${URL+z}" ]] || URL="https://raw.githubusercontent.com/truemark/tmdisk/master/tmdisk"
+[[ -n "${LOCATION+z}" ]] || LOCATION="/usr/local/bin/tmdisk"
+
+curl -sSL "${URL}" -o "${LOCATION}"
+chmod +x "${LOCATION}"

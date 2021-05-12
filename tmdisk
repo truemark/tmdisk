@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+###############################################################################
+# This script is an answer to issues suffered where NVME disk order is
+# unpredictable and inconsistent. This script will list disk devices in a
+# predictable order. For AWS and Terraform, this means disks will be listed in
+# the order they were defined for the EC2 instance.
+###############################################################################
+
+DEVS=""
+
+function get_nvme() {
+  DEVS=$(
+    for i in $(nvme list | awk '{print $1}' | grep nvme); do
+      echo $(nvme id-ctrl --raw-binary $i 2>&1 | cut -c3073-3104 | \
+      tr -s ' ' | sed 's/ $//g' | tail -n 1 | sed 's/\/dev\///g') ${i};
+    done | sort -n | awk '{print $2}'
+  )
+}
+
+function get_lsblk() {
+  DEVS=$(lsblk -ldn | grep disk | grep -v fd | awk '{print $1}' | sed 's/^/\/dev\//g' | sort -n)
+}
+
+which nvme 2>&1 > /dev/null
+if ! [[ $? -eq 0 ]]; then
+  get_lsblk
+else
+  get_nvme
+  COUNT=$(echo ${DEVS} | sed '/^[[:space:]]*$/d' | wc -l)
+  if [[ ${COUNT} -eq "0" ]]; then
+    get_lsblk
+  fi
+fi
+
+
+if [[ -z "${1}" ]]; then
+  for i in ${DEVS}; do echo ${i}; done
+else
+  if ! [[ ${1} =~ ^[0-9]+$ ]]; then
+    echo "argument must be a number"
+    exit 1
+  fi
+  for i in ${DEVS}; do echo ${i}; done | sed "$((${1}+1))q;d"
+fi
+
